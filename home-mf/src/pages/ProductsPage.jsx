@@ -202,7 +202,7 @@ export default function ProductsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {products.map((product) => (
                   <div
-                    key={product._id}
+                    key={product.slug}
                     onClick={() => handleProductClick(product.slug)}
                     className="card bg-base-200 shadow-lg hover:shadow-2xl transition-shadow cursor-pointer group"
                   >

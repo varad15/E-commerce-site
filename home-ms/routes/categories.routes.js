@@ -1,4 +1,4 @@
-// routes/categories.routes.js - MongoDB version
+// routes/categories.routes.js - FIXED response format
 const express = require('express');
 const router = express.Router();
 const Category = require('../models/Category');
@@ -19,6 +19,7 @@ router.get('/', asyncHandler(async (req, res) => {
   
   const categories = await Category.find(query).sort({ createdAt: -1 });
   
+  // Return array directly (not wrapped in object) to match frontend expectation
   res.json(categories);
 }));
 
@@ -72,7 +73,9 @@ router.get('/:id/products', asyncHandler(async (req, res) => {
     category: {
       id: category._id,
       name: category.name,
-      slug: category.slug
+      slug: category.slug,
+      description: category.description,
+      image: category.image
     },
     products,
     pagination: {

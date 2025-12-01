@@ -1,9 +1,7 @@
 // src/context/CartContext.jsx
-// Cart context and provider
+// Global cart management with localStorage for guest users
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
-import { useAuth } from './AuthContext';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 const CartContext = createContext();
 
@@ -16,93 +14,108 @@ export const useCartContext = () => {
 };
 
 export const CartProvider = ({ children }) => {
-  const { user } = useAuth();
   const [cart, setCart] = useState({ items: [] });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const isInitialized = useRef(false);
 
-  // Fetch cart when user logs in
-  useEffect(() => {
-    if (user) {
-      fetchCart();
-    } else {
-      setCart({ items: [] });
-    }
-  }, [user]);
-
-  const fetchCart = async () => {
-    if (!user) return;
+  const loadCart = useCallback(() => {
+    if (isInitialized.current) return;
     
     try {
-      setLoading(true);
-      const response = await api.get('/cart');
-      setCart(response.data.cart || { items: [] });
-    } catch (error) {
-      console.error('Error fetching cart:', error);
-      setCart({ items: [] });
+      const savedCart = localStorage.getItem('guestCart');
+      if (savedCart) {
+        setCart(JSON.parse(savedCart));
+      }
+    } catch (err) {
+      console.error('Error loading cart:', err);
     } finally {
       setLoading(false);
+      isInitialized.current = true;
     }
-  };
+  }, []);
 
-  const addToCart = async (productId, quantity = 1) => {
-    if (!user) {
-      throw new Error('Please login to add items to cart');
+  useEffect(() => {
+    loadCart();
+  }, [loadCart]);
+
+  useEffect(() => {
+    if (!loading && isInitialized.current) {
+      localStorage.setItem('guestCart', JSON.stringify(cart));
     }
+  }, [cart, loading]);
 
-    try {
-      const response = await api.post('/cart/add', { productId, quantity });
-      setCart(response.data.cart);
-      return response.data.cart;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to add to cart');
-    }
-  };
+  const addToCart = useCallback((product, quantity = 1) => {
+    setCart(prevCart => {
+      const existingItemIndex = prevCart.items.findIndex(
+        item => item.productId === product._id
+      );
 
-  const updateQuantity = async (itemId, quantity) => {
-    if (!user) return;
+      if (existingItemIndex > -1) {
+        const updatedItems = [...prevCart.items];
+        updatedItems[existingItemIndex].quantity += quantity;
+        return { items: updatedItems };
+      } else {
+        const newItem = {
+          _id: `${product._id}-${Date.now()}`,
+          productId: product._id,
+          slug: product.slug,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          categoryName: product.categoryName,
+          quantity: quantity,
+          stockQuantity: product.stockQuantity
+        };
+        return { items: [...prevCart.items, newItem] };
+      }
+    });
+  }, []);
 
-    try {
-      const response = await api.put(`/cart/update/${itemId}`, { quantity });
-      setCart(response.data.cart);
-      return response.data.cart;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to update quantity');
-    }
-  };
+  const updateQuantity = useCallback((itemId, newQuantity) => {
+    if (newQuantity < 1) return;
+    
+    setCart(prevCart => {
+      const updatedItems = prevCart.items.map(item =>
+        item._id === itemId ? { ...item, quantity: newQuantity } : item
+      );
+      return { items: updatedItems };
+    });
+  }, []);
 
-  const removeItem = async (itemId) => {
-    if (!user) return;
+  const removeItem = useCallback((itemId) => {
+    setCart(prevCart => {
+      const updatedItems = prevCart.items.filter(item => item._id !== itemId);
+      return { items: updatedItems };
+    });
+  }, []);
 
-    try {
-      const response = await api.delete(`/cart/remove/${itemId}`);
-      setCart(response.data.cart);
-      return response.data.cart;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to remove item');
-    }
-  };
+  const clearCart = useCallback(() => {
+    setCart({ items: [] });
+    localStorage.removeItem('guestCart');
+  }, []);
 
-  const clearCart = async () => {
-    if (!user) return;
+  const getCartCount = useCallback(() => {
+    return cart.items.reduce((total, item) => total + item.quantity, 0);
+  }, [cart.items]);
 
-    try {
-      const response = await api.delete('/cart/clear');
-      setCart({ items: [] });
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to clear cart');
-    }
-  };
+  const getCartTotal = useCallback(() => {
+    return cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+  }, [cart.items]);
 
   const value = {
     cart,
     loading,
-    fetchCart,
     addToCart,
     updateQuantity,
     removeItem,
-    clearCart
+    clearCart,
+    getCartCount,
+    getCartTotal
   };
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+    </CartContext.Provider>
+  );
 };

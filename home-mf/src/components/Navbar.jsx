@@ -1,7 +1,7 @@
 // src/components/Navbar.jsx
-// Interactive Navbar with cart count, login/logout, and navigation
+// Interactive Navbar with real-time cart count from CartContext
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCartContext } from '../context/CartContext';
@@ -9,20 +9,19 @@ import { useCartContext } from '../context/CartContext';
 const Navbar = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { cart } = useCartContext();
+  const { cart, getCartCount, getCartTotal } = useCartContext();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Calculate total items in cart
-  const cartItemCount = cart?.items?.reduce((total, item) => total + item.quantity, 0) || 0;
-  const cartSubtotal = cart?.items?.reduce((total, item) => total + (item.price * item.quantity), 0) || 0;
+  // Calculate total items and subtotal in cart
+  const cartItemCount = getCartCount();
+  const cartSubtotal = getCartTotal();
 
-const handleSearch = (e) => {
-  e.preventDefault();
-  if (searchQuery.trim()) {
-    // Navigate with query param 'search' to match ProductsPage
-    navigate(`/products?search=${searchQuery}`);
-  }
-};
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/products?search=${searchQuery}`);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -105,6 +104,31 @@ const handleSearch = (e) => {
                     <span className="text-primary font-semibold">
                       Subtotal: ₹{cartSubtotal.toFixed(2)}
                     </span>
+                    
+                    {/* Show cart items preview */}
+                    <div className="max-h-48 overflow-y-auto space-y-2 my-2">
+                      {cart.items.slice(0, 3).map((item) => (
+                        <div key={item._id} className="flex items-center gap-2 text-sm">
+                          <img 
+                            src={item.image} 
+                            alt={item.name} 
+                            className="w-10 h-10 object-cover rounded"
+                          />
+                          <div className="flex-1">
+                            <div className="font-semibold truncate">{item.name}</div>
+                            <div className="text-xs text-base-content/70">
+                              {item.quantity} x ₹{item.price}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {cart.items.length > 3 && (
+                        <div className="text-xs text-center text-base-content/70">
+                          +{cart.items.length - 3} more items
+                        </div>
+                      )}
+                    </div>
+                    
                     <div className="card-actions">
                       <button
                         onClick={() => navigate('/cart')}

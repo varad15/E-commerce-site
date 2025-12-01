@@ -1,24 +1,17 @@
 // src/pages/CartPage.jsx
-// Shopping cart with add/remove/update functionality
+// Shopping cart page with guest cart support
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { useCart } from '../hooks/useApi';
+import { useCartContext } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 
 export default function CartPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { cart, loading, updateQuantity, removeItem, clearCart } = useCart();
-
-  // Redirect to login if not authenticated
-  React.useEffect(() => {
-    if (!loading && !user) {
-      navigate('/login', { state: { from: '/cart' } });
-    }
-  }, [user, loading, navigate]);
+  const { cart, loading, updateQuantity, removeItem, clearCart, getCartTotal } = useCartContext();
 
   if (loading) {
     return (
@@ -34,36 +27,36 @@ export default function CartPage() {
   }
 
   const items = cart?.items || [];
-  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = getCartTotal();
   const shipping = subtotal > 50 ? 0 : 5;
   const total = subtotal + shipping;
 
-  const handleUpdateQuantity = async (itemId, newQuantity) => {
+  const handleUpdateQuantity = (itemId, newQuantity) => {
     if (newQuantity < 1) return;
-    try {
-      await updateQuantity(itemId, newQuantity);
-    } catch (err) {
-      alert('Failed to update quantity');
-    }
+    updateQuantity(itemId, newQuantity);
   };
 
-  const handleRemoveItem = async (itemId) => {
+  const handleRemoveItem = (itemId) => {
     if (window.confirm('Remove this item from cart?')) {
-      try {
-        await removeItem(itemId);
-      } catch (err) {
-        alert('Failed to remove item');
-      }
+      removeItem(itemId);
     }
   };
 
-  const handleClearCart = async () => {
+  const handleClearCart = () => {
     if (window.confirm('Clear all items from cart?')) {
-      try {
-        await clearCart();
-      } catch (err) {
-        alert('Failed to clear cart');
+      clearCart();
+    }
+  };
+
+  const handleCheckout = () => {
+    if (!user) {
+      // User not logged in, redirect to login
+      if (window.confirm('Please sign in to complete your purchase. Would you like to go to the login page?')) {
+        navigate('/login', { state: { from: '/cart' } });
       }
+    } else {
+      // User logged in, proceed to checkout
+      navigate('/checkout');
     }
   };
 
@@ -96,7 +89,7 @@ export default function CartPage() {
                 <span className="text-sm text-base-content/70">
                   {items.length} {items.length === 1 ? 'item' : 'items'} in cart
                 </span>
-                <button onClick={handleClearCart} className="btn btn-sm btn-ghost btn-error">
+                <button onClick={handleClearCart} className="btn btn-sm btn-ghost text-error">
                   Clear Cart
                 </button>
               </div>
@@ -108,8 +101,8 @@ export default function CartPage() {
                       {/* Product Image */}
                       <figure className="w-24 h-24 flex-shrink-0">
                         <img 
-                          src={item.product?.image || item.image} 
-                          alt={item.product?.name || item.name}
+                          src={item.image} 
+                          alt={item.name}
                           className="w-full h-full object-cover rounded-lg"
                         />
                       </figure>
@@ -120,15 +113,17 @@ export default function CartPage() {
                           <div>
                             <h3 className="font-bold text-lg">
                               <a 
-                                href={`/products/${item.product?.slug}`}
+                                href={`/products/${item.slug}`}
                                 className="hover:text-primary"
                               >
-                                {item.product?.name || item.name}
+                                {item.name}
                               </a>
                             </h3>
-                            <p className="text-sm text-base-content/70">
-                              {item.product?.categoryName}
-                            </p>
+                            {item.categoryName && (
+                              <p className="text-sm text-base-content/70">
+                                {item.categoryName}
+                              </p>
+                            )}
                           </div>
                           <button
                             onClick={() => handleRemoveItem(item._id)}
@@ -156,7 +151,7 @@ export default function CartPage() {
                             <button
                               onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
                               className="btn btn-xs btn-circle"
-                              disabled={item.quantity >= (item.product?.stockQuantity || 999)}
+                              disabled={item.quantity >= (item.stockQuantity || 999)}
                             >
                               +
                             </button>
@@ -216,11 +211,20 @@ export default function CartPage() {
                     <span className="text-primary">₹{total.toFixed(2)}</span>
                   </div>
                   
+                  {!user && (
+                    <div className="alert alert-warning mt-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span className="text-xs">Sign in required to checkout</span>
+                    </div>
+                  )}
+                  
                   <button 
-                    onClick={() => navigate('/checkout')}
+                    onClick={handleCheckout}
                     className="btn btn-primary btn-block mt-4"
                   >
-                    Proceed to Checkout
+                    {user ? 'Proceed to Checkout' : 'Sign In to Checkout'}
                   </button>
                   
                   <button 

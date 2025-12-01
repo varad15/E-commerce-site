@@ -39,6 +39,7 @@ export default function Homepage() {
       {/* Products by Category - Multiple carousels */}
       <section className="py-8 px-4">
         <ProductsByCategorySection limit={10} />
+        <p className="text-center mt-6">product by category</p>
       </section>
       
       {/* Service Strips */}

@@ -1,40 +1,68 @@
 // src/pages/ProductDetail.jsx
-// Product details page with add to cart functionality
+// Product details page with guest cart support
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useProduct } from '../hooks/useApi';
-import { useCart } from '../hooks/useApi';
+import { useCartContext } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 
 export default function ProductDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { product, loading, error } = useProduct(slug);
-  const { addToCart } = useCart();
   const { user } = useAuth();
+  const { product, loading, error } = useProduct(slug);
+  const { addToCart } = useCartContext();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [addingToCart, setAddingToCart] = useState(false);
 
   const handleAddToCart = async () => {
-    if (!user) {
-      navigate('/login', { state: { from: `/products/${slug}` } });
-      return;
-    }
-
     setAddingToCart(true);
+    
     try {
-      await addToCart(product._id, quantity);
-      // Show success message or toast
-      alert('Added to cart successfully!');
+      // Add to cart using context
+      addToCart(product, quantity);
+      
+      // Show success message
+      const toast = document.createElement('div');
+      toast.className = 'toast toast-top toast-end';
+      toast.innerHTML = `
+        <div class="alert alert-success">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>${quantity} x ${product.name} added to cart!</span>
+        </div>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+      
+      // Reset quantity
+      setQuantity(1);
     } catch (err) {
-      alert('Failed to add to cart');
+      alert('❌ Failed to add to cart');
     } finally {
       setAddingToCart(false);
     }
+  };
+
+  const handleBuyNow = () => {
+    if (!user) {
+      // Show alert to sign in
+      if (window.confirm('Please sign in to complete your purchase. Would you like to go to the login page?')) {
+        // Save intended destination
+        navigate('/login', { state: { from: `/products/${slug}`, buyNow: true } });
+      }
+      return;
+    }
+    
+    // Add to cart first
+    addToCart(product, quantity);
+    // Navigate to checkout
+    navigate('/checkout');
   };
 
   if (loading) {
@@ -129,13 +157,13 @@ export default function ProductDetail() {
                     key={star}
                     type="radio"
                     className="mask mask-star-2 bg-orange-400"
-                    checked={star === Math.round(product.rating)}
+                    checked={star === Math.round(product.rating || 4)}
                     readOnly
                   />
                 ))}
               </div>
               <span className="text-sm">
-                {product.rating} ({product.reviewCount} reviews)
+                {product.rating || 4} ({product.reviewCount || 0} reviews)
               </span>
             </div>
 
@@ -225,7 +253,7 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            {/* Add to Cart Button */}
+            {/* Add to Cart & Buy Now Buttons */}
             <div className="flex gap-2 mb-6">
               <button
                 onClick={handleAddToCart}
@@ -244,12 +272,23 @@ export default function ProductDetail() {
                 )}
               </button>
               <button
-                onClick={() => navigate('/cart')}
-                className="btn btn-outline"
+                onClick={handleBuyNow}
+                disabled={!product.inStock}
+                className="btn btn-secondary flex-1"
               >
-                View Cart
+                Buy Now
               </button>
             </div>
+
+            {/* Info: No auth required for cart */}
+            {!user && (
+              <div className="alert alert-info mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm">No login required to add items. Sign in at checkout to complete purchase.</span>
+              </div>
+            )}
 
             {/* Description */}
             <div className="mb-6">

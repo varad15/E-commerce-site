@@ -1,27 +1,43 @@
 // src/components/ProductCarousel.jsx
-// Beautiful product carousel with Swiper
+// Beautiful product carousel - GUEST CART ENABLED (No auth required)
 
 import React from 'react';
-import { useCart } from '../hooks/useApi';
-import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const ProductCarousel = ({ products, title, loading, viewAllLink }) => {
-  const { addToCart } = useCart();
-  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
-  const handleAddToCart = async (productId) => {
-    if (!isAuthenticated) {
-      alert('Please login to add items to cart');
-      window.location.href = '/login';
-      return;
-    }
-
-    const result = await addToCart(productId, 1);
-    if (result.success) {
-      alert('Product added to cart!');
+  const handleAddToCart = async (product) => {
+    // Get existing cart from localStorage
+    const cart = JSON.parse(localStorage.getItem('guestCart') || '{"items":[]}');
+    
+    // Check if product already in cart
+    const existingItem = cart.items.find(item => item.productId === product._id);
+    
+    if (existingItem) {
+      existingItem.quantity += 1;
     } else {
-      alert(result.error || 'Failed to add to cart');
+      cart.items.push({
+        productId: product._id,
+        slug: product.slug,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        quantity: 1
+      });
     }
+    
+    // Save to localStorage
+    localStorage.setItem('guestCart', JSON.stringify(cart));
+    
+    // Dispatch event to update cart count in navbar
+    window.dispatchEvent(new Event('cartUpdated'));
+    
+    alert(`✅ ${product.name} added to cart!`);
+  };
+
+  const handleProductClick = (slug) => {
+    navigate(`/products/${slug}`);
   };
 
   if (loading) {
@@ -73,7 +89,10 @@ const ProductCarousel = ({ products, title, loading, viewAllLink }) => {
               >
                 <div className="card bg-base-200 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 h-full">
                   {/* Product Image */}
-                  <figure className="px-3 pt-3 relative">
+                  <figure 
+                    className="px-3 pt-3 relative cursor-pointer"
+                    onClick={() => handleProductClick(product.slug)}
+                  >
                     <img
                       src={product.image}
                       alt={product.name}
@@ -105,7 +124,10 @@ const ProductCarousel = ({ products, title, loading, viewAllLink }) => {
 
                   <div className="card-body p-3">
                     {/* Product Name */}
-                    <h3 className="text-sm font-semibold line-clamp-2 min-h-[2.5rem]">
+                    <h3 
+                      className="text-sm font-semibold line-clamp-2 min-h-[2.5rem] cursor-pointer hover:text-primary"
+                      onClick={() => handleProductClick(product.slug)}
+                    >
                       {product.name}
                     </h3>
 
@@ -144,15 +166,15 @@ const ProductCarousel = ({ products, title, loading, viewAllLink }) => {
 
                     {/* Actions */}
                     <div className="card-actions mt-3 gap-1">
-                      <a
-                        href={`/products/${product._id}`}
+                      <button
+                        onClick={() => handleProductClick(product.slug)}
                         className="btn btn-ghost btn-xs flex-1"
                       >
                         View
-                      </a>
+                      </button>
                       <button
                         className={`btn btn-primary btn-xs flex-1 ${!product.inStock ? 'btn-disabled' : ''}`}
-                        onClick={() => handleAddToCart(product._id)}
+                        onClick={() => handleAddToCart(product)}
                         disabled={!product.inStock}
                       >
                         {product.inStock ? 'Add' : 'Out'}
