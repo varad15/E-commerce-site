@@ -1,62 +1,12 @@
-# ===============================================
-# CRITICAL: NEVER COMMIT THESE FILES
-# ===============================================
+# Ignore node_modules for both micro front-end and micro service
+home-mf/node_modules/
+home-ms/node_modules/
 
-# Compiled files - CONTAINS SECRETS IN MEMORY
-target/
-**/target/
-*.class
-*.jar
-*.war
-*.ear
-build/
-dist/
-out/
-
-# IDE files
-.idea/
-*.iml
-.vscode/
-.settings/
-.project
-.classpath
-*.swp
-*.swo
-.DS_Store
-
-# Node modules - HUGE SIZE
-node_modules/
-**/node_modules/
-frontend-react/node_modules/
-frontend-react/build/
-frontend-react/dist/
-
-# Environment variables - CONTAINS PASSWORDS!
-*.env
-.env
-.env.local
-.env.development
-.env.production
-.env.test
-**/.env
-**/.env.local
-
-# Application properties - CONTAINS SECRETS!
-**/application.properties
-**/application-*.properties
-**/application.yml
-**/application-*.yml
-!**/application.properties.template
-!**/application.yml.template
-
-# Database files
-*.db
-*.sqlite
-*.sql.backup
-*.dump
+# Ignore environment files
+home-mf/.env
+home-ms/.env
 
 # Logs
-logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -65,43 +15,9 @@ yarn-error.log*
 # OS files
 .DS_Store
 Thumbs.db
-desktop.ini
-*.tmp
 
-# Secrets & credentials
-secrets/
-*.pem
-*.key
-*.cert
-*.p12
-*.jks
-credentials.json
-
-# Package files - DUPLICATES
-*.zip
-*.tar.gz
-*.rar
-*.7z
-backend-app.zip
-frontend-react.zip
-
-# Maven wrapper (can be included or excluded)
-.mvn/wrapper/maven-wrapper.jar
-
-# NPM/Yarn lock files (team may use different versions)
-package-lock.json
-yarn.lock
-
-# Compiled TypeScript
-*.tsbuildinfo
-
-# Test coverage
-coverage/
-.nyc_output/
-
-# Temporary files
-*.swp
-*.swo
-*~
-.tmp/
-temp/
+# Build output (optional - add if needed)
+home-mf/dist/
+home-ms/dist/
+home-mf/build/
+home-ms/build/
