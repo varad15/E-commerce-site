@@ -80,12 +80,12 @@ public class JwtService {
         Instant now = Instant.now();
         Instant expirationTime = now.plus(jwtExpiration, ChronoUnit.MILLIS);
 
-        Map<String, Object> claims = Map.of(
-                "firstName", user.getFirstName(),
-                "email", user.getEmail(),
-                Claims.EXPIRATION, Date.from(expirationTime),
-                Claims.SUBJECT, user.getEmail()
-        );
+        // Create mutable map to include role
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("firstName", user.getFirstName());
+        claims.put("email", user.getEmail());
+        claims.put("role", user.getRole().getRoleType().name()); // ADMIN or USER
+        claims.put("sub", user.getEmail());
 
         String bearer = Jwts.builder()
                 .issuedAt(Date.from(now))

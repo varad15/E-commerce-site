@@ -175,6 +175,30 @@ public class UserService implements UserDetailsService {
         return user;
     }
 
+    public void deleteUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole().getRoleType() == RoleType.ADMIN) {
+            throw new RuntimeException("Cannot delete admin user");
+        }
+
+        userRepository.deleteById(userId);
+        log.info("User deleted: {}", userId);
+    }
+
+    /**
+     * Activate user by ID (Admin only)
+     */
+    public void activateUserById(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setActif(true);
+        userRepository.save(user);
+        log.info("User activated by admin: {}", userId);
+    }
+
     @Override
     public User loadUserByUsername(String username) throws UsernameNotFoundException {
         return this.userRepository.findByEmail(username)

@@ -1,28 +1,43 @@
 package com.ninehub.authentication.controller;
 
-import com.ninehub.authentication.entity.Avis;
 import com.ninehub.authentication.entity.User;
 import com.ninehub.authentication.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
+@Slf4j
 @RestController
+@RequestMapping("/users")
 @RequiredArgsConstructor
-@RequestMapping("user")
 public class UserController {
+
     private final UserService userService;
 
+    @GetMapping
+    public ResponseEntity<List<User>> getAllUsers() {
+        log.info("Admin fetching all users");
+        List<User> users = userService.getAllUser();
+        log.info("Returning {} users", users.size());
+        return ResponseEntity.ok(users);
+    }
 
-    @PreAuthorize("hasAuthority('ADMIN_READ')")
-    @GetMapping("/all")
-    public ResponseEntity<List<User>> getAllUser(){
-        return new ResponseEntity<>(userService.getAllUser(), HttpStatus.OK);
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+        log.info("Admin deleting user with id: {}", id);
+        userService.deleteUser(id);
+        return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
+    }
+
+    @PostMapping("/{id}/activate")
+    public ResponseEntity<?> activateUser(@PathVariable Long id) {
+        log.info("Admin activating user with id: {}", id);
+        userService.activateUserById(id);
+        return ResponseEntity.ok(Map.of("message", "User activated successfully"));
     }
 }
