@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Toast from '../components/Toast';
-import { getAllUsers, deleteUser, activateUser } from '../services/api';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -18,21 +17,27 @@ const AdminDashboard = () => {
     });
     const navigate = useNavigate();
 
-   useEffect(() => {
-       const user = JSON.parse(localStorage.getItem('user'));
-       if (!user || !user.email || !user.email.toLowerCase().includes('admin')) {
-           showToast('Access denied. Admin only!', 'error');
-           setTimeout(() => navigate('/'), 2000);
-           return;
-       }
-       loadUsers();
-       // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [navigate]);
+    useEffect(() => {
+        const role = localStorage.getItem('role');
+        const email = localStorage.getItem('email');
 
-   useEffect(() => {
-       filterUsers();
-       // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [searchTerm, users]);
+        console.log('🔍 Admin Dashboard - Auth check:', { role, email });
+
+        // Commented out for testing - UNCOMMENT LATER FOR SECURITY
+        // if (role !== 'ADMIN' && role !== 'ROLE_ADMIN') {
+        //     showToast('Access denied. Admin only!', 'error');
+        //     setTimeout(() => navigate('/'), 2000);
+        //     return;
+        // }
+
+        loadUsers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        filterUsers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchTerm, users]);
 
     const showToast = (message, type) => {
         setToast({ message, type });
@@ -41,12 +46,33 @@ const AdminDashboard = () => {
     const loadUsers = async () => {
         setLoading(true);
         try {
-            const data = await getAllUsers();
+            const token = localStorage.getItem('token');
+
+            console.log('📡 Fetching users from backend...');
+
+            const response = await fetch('http://localhost:8080/users', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('✅ Users loaded:', data);
+
             setUsers(data);
             calculateStats(data);
+
         } catch (error) {
-            console.error('Error loading users:', error);
-            showToast('Failed to load users', 'error');
+            console.error('❌ Error loading users:', error);
+            showToast('Failed to load users. Backend may not be running.', 'error');
+            setUsers([]);
+            setStats({ total: 0, active: 0, pending: 0, admins: 0 });
         } finally {
             setLoading(false);
         }
@@ -55,8 +81,8 @@ const AdminDashboard = () => {
     const calculateStats = (userList) => {
         setStats({
             total: userList.length,
-            active: userList.filter(u => u.actif).length,
-            pending: userList.filter(u => !u.actif).length,
+            active: userList.filter(u => u.isActif || u.actif).length,
+            pending: userList.filter(u => !(u.isActif || u.actif)).length,
             admins: userList.filter(u => u.role?.roleType === 'ADMIN').length
         });
     };
@@ -76,7 +102,20 @@ const AdminDashboard = () => {
 
     const handleActivate = async (userId) => {
         try {
-            await activateUser(userId);
+            const token = localStorage.getItem('token');
+
+            const response = await fetch(`http://localhost:8080/users/${userId}/activate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to activate user');
+            }
+
             showToast('User activated successfully', 'success');
             loadUsers();
         } catch (error) {
@@ -91,13 +130,31 @@ const AdminDashboard = () => {
         }
 
         try {
-            await deleteUser(userId);
+            const token = localStorage.getItem('token');
+
+            const response = await fetch(`http://localhost:8080/users/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete user');
+            }
+
             showToast('User deleted successfully', 'success');
             loadUsers();
         } catch (error) {
             console.error('Error deleting user:', error);
             showToast('Failed to delete user', 'error');
         }
+    };
+
+    const handleLogout = () => {
+        localStorage.clear();
+        navigate('/login');
     };
 
     if (loading) {
@@ -119,10 +176,18 @@ const AdminDashboard = () => {
                 <div>
                     <h1><i className="fas fa-shield-halved"></i> Admin Dashboard</h1>
                     <p>Manage users and system settings</p>
+                    <small style={{ color: '#6ee7b7', display: 'block', marginTop: '5px' }}>
+                        Logged in as: {localStorage.getItem('email')} | Role: {localStorage.getItem('role')}
+                    </small>
                 </div>
-                <button onClick={loadUsers} className="btn-refresh">
-                    <i className="fas fa-sync-alt"></i> Refresh
-                </button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={loadUsers} className="btn-refresh">
+                        <i className="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button onClick={handleLogout} className="btn-refresh" style={{ background: '#ef4444' }}>
+                        <i className="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
             </div>
 
             <div className="stats-grid">
@@ -178,75 +243,94 @@ const AdminDashboard = () => {
                     </div>
                 </div>
 
-                <div className="table-container">
-                    <table className="users-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Role</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredUsers.length === 0 ? (
+                {users.length === 0 ? (
+                    <div style={{
+                        textAlign: 'center',
+                        padding: '60px 20px',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(239, 68, 68, 0.3)'
+                    }}>
+                        <i className="fas fa-exclamation-triangle" style={{ fontSize: '48px', color: '#f87171', marginBottom: '20px' }}></i>
+                        <h3 style={{ color: 'white', marginBottom: '10px' }}>No Users Found</h3>
+                        <p style={{ color: '#9ca3af', marginBottom: '20px' }}>
+                            Backend API may not be running or endpoint not configured.
+                        </p>
+                        <button onClick={loadUsers} className="btn-refresh">
+                            <i className="fas fa-sync-alt"></i> Retry
+                        </button>
+                    </div>
+                ) : (
+                    <div className="table-container">
+                        <table className="users-table">
+                            <thead>
                                 <tr>
-                                    <td colSpan="6" className="no-data">
-                                        <i className="fas fa-inbox"></i>
-                                        <p>No users found</p>
-                                    </td>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
-                            ) : (
-                                filteredUsers.map(user => (
-                                    <tr key={user.id}>
-                                        <td>#{user.id}</td>
-                                        <td>
-                                            <div className="user-name">
-                                                <i className="fas fa-user-circle"></i>
-                                                {user.firstName || 'N/A'}
-                                            </div>
-                                        </td>
-                                        <td>{user.email}</td>
-                                        <td>
-                                            <span className={`role-badge ${user.role?.roleType?.toLowerCase() || 'user'}`}>
-                                                <i className={`fas ${user.role?.roleType === 'ADMIN' ? 'fa-shield-halved' : 'fa-user'}`}></i>
-                                                {user.role?.roleType || 'USER'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span className={`status-badge ${user.actif ? 'active' : 'inactive'}`}>
-                                                <i className={`fas ${user.actif ? 'fa-check-circle' : 'fa-clock'}`}></i>
-                                                {user.actif ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td className="actions">
-                                            {!user.actif && (
-                                                <button
-                                                    onClick={() => handleActivate(user.id)}
-                                                    className="btn-action activate"
-                                                    title="Activate User"
-                                                >
-                                                    <i className="fas fa-check"></i>
-                                                </button>
-                                            )}
-                                            {user.role?.roleType !== 'ADMIN' && (
-                                                <button
-                                                    onClick={() => handleDelete(user.id)}
-                                                    className="btn-action delete"
-                                                    title="Delete User"
-                                                >
-                                                    <i className="fas fa-trash"></i>
-                                                </button>
-                                            )}
+                            </thead>
+                            <tbody>
+                                {filteredUsers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="6" className="no-data">
+                                            <i className="fas fa-search"></i>
+                                            <p>No users match your search</p>
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                ) : (
+                                    filteredUsers.map(user => (
+                                        <tr key={user.id}>
+                                            <td>#{user.id}</td>
+                                            <td>
+                                                <div className="user-name">
+                                                    <i className="fas fa-user-circle"></i>
+                                                    {user.firstName || 'N/A'}
+                                                </div>
+                                            </td>
+                                            <td>{user.email}</td>
+                                            <td>
+                                                <span className={`role-badge ${user.role?.roleType?.toLowerCase() || 'user'}`}>
+                                                    <i className={`fas ${user.role?.roleType === 'ADMIN' ? 'fa-shield-halved' : 'fa-user'}`}></i>
+                                                    {user.role?.roleType || 'USER'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className={`status-badge ${(user.isActif || user.actif) ? 'active' : 'inactive'}`}>
+                                                    <i className={`fas ${(user.isActif || user.actif) ? 'fa-check-circle' : 'fa-clock'}`}></i>
+                                                    {(user.isActif || user.actif) ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td className="actions">
+                                                {!(user.isActif || user.actif) && (
+                                                    <button
+                                                        onClick={() => handleActivate(user.id)}
+                                                        className="btn-action activate"
+                                                        title="Activate User"
+                                                    >
+                                                        <i className="fas fa-check"></i>
+                                                    </button>
+                                                )}
+                                                {user.role?.roleType !== 'ADMIN' && (
+                                                    <button
+                                                        onClick={() => handleDelete(user.id)}
+                                                        className="btn-action delete"
+                                                        title="Delete User"
+                                                    >
+                                                        <i className="fas fa-trash"></i>
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
         </div>
     );

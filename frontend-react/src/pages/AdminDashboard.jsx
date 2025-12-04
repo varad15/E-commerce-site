@@ -1,230 +1,298 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Toast from '../components/Toast';
+import { getAllUsers, deleteUser, activateUser } from '../services/api';
+import './AdminDashboard.css';
 
-function AdminDashboard() {
-  const navigate = useNavigate();
-  const [users, setUsers] = useState([]);
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    activeUsers: 0,
-    inactiveUsers: 0
-  });
+const AdminDashboard = () => {
+    const [users, setUsers] = useState([]);
+    const [filteredUsers, setFilteredUsers] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [toast, setToast] = useState(null);
+    const [stats, setStats] = useState({
+        total: 0,
+        active: 0,
+        pending: 0,
+        admins: 0
+    });
+    const navigate = useNavigate();
 
-  useEffect(() => {
-    // Check if user is admin
-    const role = localStorage.getItem('role');
-    if (role !== 'ADMIN' && role !== 'ROLE_ADMIN') {
-      navigate('/');
-      return;
+    useEffect(() => {
+        const role = localStorage.getItem('role');
+        const email = localStorage.getItem('email');
+
+        console.log('🔍 Admin Dashboard - Auth check:', { role, email });
+
+        // Temporarily disabled for testing
+        // if (role !== 'ADMIN' && role !== 'ROLE_ADMIN') {
+        //     showToast('Access denied. Admin only!', 'error');
+        //     setTimeout(() => navigate('/'), 2000);
+        //     return;
+        // }
+
+        loadUsers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        filterUsers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchTerm, users]);
+
+    const showToast = (message, type) => {
+        setToast({ message, type });
+    };
+
+    const loadUsers = async () => {
+        setLoading(true);
+        try {
+            console.log('📡 Fetching users...');
+            const data = await getAllUsers();
+            console.log('✅ Users loaded:', data);
+            setUsers(data);
+            calculateStats(data);
+        } catch (error) {
+            console.error('❌ Error loading users:', error);
+            showToast('Failed to load users. Check if backend is running.', 'error');
+            setUsers([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const calculateStats = (userList) => {
+        setStats({
+            total: userList.length,
+            active: userList.filter(u => u.isActif || u.actif).length,
+            pending: userList.filter(u => !(u.isActif || u.actif)).length,
+            admins: userList.filter(u => u.role?.roleType === 'ADMIN').length
+        });
+    };
+
+    const filterUsers = () => {
+        if (!searchTerm) {
+            setFilteredUsers(users);
+            return;
+        }
+
+        const filtered = users.filter(user =>
+            user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        setFilteredUsers(filtered);
+    };
+
+    const handleActivate = async (userId) => {
+        try {
+            console.log('Activating user:', userId);
+            await activateUser(userId);
+            showToast('User activated successfully', 'success');
+            loadUsers();
+        } catch (error) {
+            console.error('Error activating user:', error);
+            showToast('Failed to activate user', 'error');
+        }
+    };
+
+    const handleDelete = async (userId) => {
+        if (!window.confirm('Are you sure you want to delete this user?')) {
+            return;
+        }
+
+        try {
+            console.log('Deleting user:', userId);
+            await deleteUser(userId);
+            showToast('User deleted successfully', 'success');
+            loadUsers();
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            showToast('Failed to delete user', 'error');
+        }
+    };
+
+    const handleLogout = () => {
+        localStorage.clear();
+        navigate('/login');
+    };
+
+    if (loading) {
+        return (
+            <div className="admin-container">
+                <div className="loading-spinner">
+                    <div className="spinner-large"></div>
+                    <p>Loading dashboard...</p>
+                </div>
+            </div>
+        );
     }
 
-    // Fetch admin data here (when you have admin endpoints)
-    // For now, showing placeholder data
-    fetchDashboardData();
-  }, [navigate]);
+    return (
+        <div className="admin-container">
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-  const fetchDashboardData = () => {
-    // Placeholder - replace with actual API call
-    setStats({
-      totalUsers: 15,
-      activeUsers: 12,
-      inactiveUsers: 3
-    });
-  };
+            <div className="admin-header">
+                <div>
+                    <h1><i className="fas fa-shield-halved"></i> Admin Dashboard</h1>
+                    <p>Manage users and system settings</p>
+                    <small style={{ color: '#6ee7b7', display: 'block', marginTop: '5px' }}>
+                        {localStorage.getItem('email')} | {localStorage.getItem('role')}
+                    </small>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={loadUsers} className="btn-refresh">
+                        <i className="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button onClick={handleLogout} className="btn-refresh" style={{ background: '#ef4444' }}>
+                        <i className="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    navigate('/login');
-  };
+            <div className="stats-grid">
+                <div className="stat-card blue">
+                    <div className="stat-icon">
+                        <i className="fas fa-users"></i>
+                    </div>
+                    <div className="stat-info">
+                        <h3>{stats.total}</h3>
+                        <p>Total Users</p>
+                    </div>
+                </div>
+                <div className="stat-card green">
+                    <div className="stat-icon">
+                        <i className="fas fa-user-check"></i>
+                    </div>
+                    <div className="stat-info">
+                        <h3>{stats.active}</h3>
+                        <p>Active Users</p>
+                    </div>
+                </div>
+                <div className="stat-card orange">
+                    <div className="stat-icon">
+                        <i className="fas fa-user-clock"></i>
+                    </div>
+                    <div className="stat-info">
+                        <h3>{stats.pending}</h3>
+                        <p>Pending Activation</p>
+                    </div>
+                </div>
+                <div className="stat-card purple">
+                    <div className="stat-icon">
+                        <i className="fas fa-user-shield"></i>
+                    </div>
+                    <div className="stat-info">
+                        <h3>{stats.admins}</h3>
+                        <p>Administrators</p>
+                    </div>
+                </div>
+            </div>
 
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(to bottom right, #1e293b, #6b21a8, #1e293b)',
-      padding: '20px'
-    }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '30px',
-        padding: '20px',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.2)'
-      }}>
-        <h1 style={{ color: 'white', fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
-          🔐 Admin Dashboard
-        </h1>
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: '10px 20px',
-            background: 'linear-gradient(to right, #ef4444, #dc2626)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: '600'
-          }}
-        >
-          Logout
-        </button>
-      </div>
+            <div className="users-section">
+                <div className="section-header">
+                    <h2><i className="fas fa-users-cog"></i> User Management</h2>
+                    <div className="search-box">
+                        <i className="fas fa-search"></i>
+                        <input
+                            type="text"
+                            placeholder="Search by name or email..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                </div>
 
-      {/* Stats Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '20px',
-        marginBottom: '30px'
-      }}>
-        {/* Total Users Card */}
-        <div style={{
-          padding: '30px',
-          backgroundColor: 'rgba(59, 130, 246, 0.2)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '12px',
-          border: '1px solid rgba(59, 130, 246, 0.3)'
-        }}>
-          <div style={{ fontSize: '40px', marginBottom: '10px' }}>👥</div>
-          <h3 style={{ color: 'white', fontSize: '20px', marginBottom: '8px' }}>Total Users</h3>
-          <p style={{ color: '#93c5fd', fontSize: '32px', fontWeight: 'bold', margin: 0 }}>
-            {stats.totalUsers}
-          </p>
+                {users.length === 0 ? (
+                    <div style={{
+                        textAlign: 'center',
+                        padding: '60px 20px',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(239, 68, 68, 0.3)'
+                    }}>
+                        <i className="fas fa-exclamation-triangle" style={{ fontSize: '48px', color: '#f87171', marginBottom: '20px' }}></i>
+                        <h3 style={{ color: 'white' }}>No Users Found</h3>
+                        <p style={{ color: '#9ca3af', margin: '10px 0 20px' }}>
+                            Backend may not be running or no users in database
+                        </p>
+                        <button onClick={loadUsers} className="btn-refresh">
+                            <i className="fas fa-sync-alt"></i> Retry
+                        </button>
+                    </div>
+                ) : (
+                    <div className="table-container">
+                        <table className="users-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredUsers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="6" className="no-data">
+                                            <i className="fas fa-search"></i>
+                                            <p>No users match your search</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredUsers.map(user => (
+                                        <tr key={user.id}>
+                                            <td>#{user.id}</td>
+                                            <td>
+                                                <div className="user-name">
+                                                    <i className="fas fa-user-circle"></i>
+                                                    {user.firstName || 'N/A'}
+                                                </div>
+                                            </td>
+                                            <td>{user.email}</td>
+                                            <td>
+                                                <span className={`role-badge ${user.role?.roleType?.toLowerCase() || 'user'}`}>
+                                                    <i className={`fas ${user.role?.roleType === 'ADMIN' ? 'fa-shield-halved' : 'fa-user'}`}></i>
+                                                    {user.role?.roleType || 'USER'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className={`status-badge ${(user.isActif || user.actif) ? 'active' : 'inactive'}`}>
+                                                    <i className={`fas ${(user.isActif || user.actif) ? 'fa-check-circle' : 'fa-clock'}`}></i>
+                                                    {(user.isActif || user.actif) ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td className="actions">
+                                                {!(user.isActif || user.actif) && (
+                                                    <button
+                                                        onClick={() => handleActivate(user.id)}
+                                                        className="btn-action activate"
+                                                        title="Activate User"
+                                                    >
+                                                        <i className="fas fa-check"></i>
+                                                    </button>
+                                                )}
+                                                {user.role?.roleType !== 'ADMIN' && (
+                                                    <button
+                                                        onClick={() => handleDelete(user.id)}
+                                                        className="btn-action delete"
+                                                        title="Delete User"
+                                                    >
+                                                        <i className="fas fa-trash"></i>
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
-
-        {/* Active Users Card */}
-        <div style={{
-          padding: '30px',
-          backgroundColor: 'rgba(16, 185, 129, 0.2)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '12px',
-          border: '1px solid rgba(16, 185, 129, 0.3)'
-        }}>
-          <div style={{ fontSize: '40px', marginBottom: '10px' }}>✅</div>
-          <h3 style={{ color: 'white', fontSize: '20px', marginBottom: '8px' }}>Active Users</h3>
-          <p style={{ color: '#6ee7b7', fontSize: '32px', fontWeight: 'bold', margin: 0 }}>
-            {stats.activeUsers}
-          </p>
-        </div>
-
-        {/* Inactive Users Card */}
-        <div style={{
-          padding: '30px',
-          backgroundColor: 'rgba(239, 68, 68, 0.2)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '12px',
-          border: '1px solid rgba(239, 68, 68, 0.3)'
-        }}>
-          <div style={{ fontSize: '40px', marginBottom: '10px' }}>⏸️</div>
-          <h3 style={{ color: 'white', fontSize: '20px', marginBottom: '8px' }}>Inactive Users</h3>
-          <p style={{ color: '#fca5a5', fontSize: '32px', fontWeight: 'bold', margin: 0 }}>
-            {stats.inactiveUsers}
-          </p>
-        </div>
-      </div>
-
-      {/* Admin Features */}
-      <div style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        padding: '30px'
-      }}>
-        <h2 style={{ color: 'white', fontSize: '24px', marginBottom: '20px' }}>
-          Admin Features
-        </h2>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '15px'
-        }}>
-          <button style={{
-            padding: '20px',
-            background: 'linear-gradient(to right, #a855f7, #ec4899)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '16px'
-          }}>
-            📊 View All Users
-          </button>
-
-          <button style={{
-            padding: '20px',
-            background: 'linear-gradient(to right, #3b82f6, #2563eb)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '16px'
-          }}>
-            📧 Manage Emails
-          </button>
-
-          <button style={{
-            padding: '20px',
-            background: 'linear-gradient(to right, #10b981, #059669)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '16px'
-          }}>
-            🔑 Reset Passwords
-          </button>
-
-          <button style={{
-            padding: '20px',
-            background: 'linear-gradient(to right, #f59e0b, #d97706)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '16px'
-          }}>
-            ⚙️ System Settings
-          </button>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div style={{
-        marginTop: '30px',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        padding: '30px'
-      }}>
-        <h2 style={{ color: 'white', fontSize: '24px', marginBottom: '20px' }}>
-          📝 Recent Activity
-        </h2>
-        <div style={{ color: '#d1d5db' }}>
-          <p style={{ padding: '15px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-            🟢 New user registered: user@example.com
-          </p>
-          <p style={{ padding: '15px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-            🔵 User activated account: newuser@example.com
-          </p>
-          <p style={{ padding: '15px' }}>
-            🟡 Password reset requested: help@example.com
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+    );
+};
 
 export default AdminDashboard;

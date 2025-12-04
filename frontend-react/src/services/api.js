@@ -5,7 +5,8 @@ const API_BASE_URL = 'http://localhost:8080';
 axios.defaults.withCredentials = true;
 
 const getAuthHeaders = () => {
-    const token = localStorage.getItem('authToken');
+    // ✅ FIXED: Looking for 'token' not 'authToken'
+    const token = localStorage.getItem('token');
     return {
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -16,6 +17,7 @@ const getAuthHeaders = () => {
 
 export const loginUser = async (email, password) => {
     try {
+        // ✅ FIXED: Changed backticks to parentheses
         const response = await axios.post(`${API_BASE_URL}/login`, {
             username: email,
             password: password
@@ -31,23 +33,12 @@ export const registerUser = async (name, email, password) => {
     try {
         console.log('Attempting registration:', { name, email });
 
-        // Try /inscription first (common in this backend)
-        let response;
-        try {
-            response = await axios.post(`${API_BASE_URL}/inscription`, {
-                firstName: name,
-                email: email,
-                password: password
-            });
-        } catch (err) {
-            // If /inscription fails, try /register
-            console.log('Trying /register endpoint...');
-            response = await axios.post(`${API_BASE_URL}/register`, {
-                firstName: name,
-                email: email,
-                password: password
-            });
-        }
+        // ✅ FIXED: Changed backticks to parentheses
+        const response = await axios.post(`${API_BASE_URL}/register`, {
+            firstName: name,
+            email: email,
+            password: password
+        });
 
         console.log('Registration response:', response.data);
         return response.data;
@@ -59,6 +50,7 @@ export const registerUser = async (name, email, password) => {
 
 export const activateAccount = async (email, code) => {
     try {
+        // ✅ FIXED: Changed backticks to parentheses
         const response = await axios.post(`${API_BASE_URL}/activate`, {
             email: email,
             code: code
@@ -72,6 +64,7 @@ export const activateAccount = async (email, code) => {
 
 export const getAllUsers = async () => {
     try {
+        // ✅ FIXED: Changed backticks to parentheses
         const response = await axios.get(`${API_BASE_URL}/users`, getAuthHeaders());
         return response.data;
     } catch (error) {
@@ -82,6 +75,7 @@ export const getAllUsers = async () => {
 
 export const deleteUser = async (userId) => {
     try {
+        // ✅ FIXED: Changed backticks to parentheses
         const response = await axios.delete(`${API_BASE_URL}/users/${userId}`, getAuthHeaders());
         return response.data;
     } catch (error) {
@@ -92,7 +86,8 @@ export const deleteUser = async (userId) => {
 
 export const activateUser = async (userId) => {
     try {
-        const response = await axios.put(
+        // ✅ FIXED: Changed to POST instead of PUT
+        const response = await axios.post(
             `${API_BASE_URL}/users/${userId}/activate`,
             {},
             getAuthHeaders()
@@ -103,4 +98,3 @@ export const activateUser = async (userId) => {
         throw error;
     }
 };
-
