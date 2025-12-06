@@ -1329,7 +1329,7 @@ db.orders.createIndex({ createdAt: -1 });
 ## 📸 Screenshots
 
 ### **Homepage**
-![Homepage](./docs/homepage.png)
+![Homepage](./docs/home.png)
 *Modern, animated homepage with hero banner and product carousels*
 
 ### **Product Catalog**
@@ -1358,7 +1358,7 @@ db.orders.createIndex({ createdAt: -1 });
 *Clean, modern authentication pages with form validation*
 
 ### **OTP Verification**
-![OTP Verification](./docs/otp-verify.png)
+![OTP Verification](./docs/otp-email.png)
 *Email verification with 6-digit OTP code*
 
 ### **Admin Dashboard**
@@ -1376,11 +1376,7 @@ db.orders.createIndex({ createdAt: -1 });
 
 ### **Mobile Responsive Design**
 
-<div align="center">
-  <img src="./docs/mobile-home.png" width="30%" alt="Mobile Home" />
-  <img src="./docs/mobile-products.png" width="30%" alt="Mobile Products" />
-  <img src="./docs/mobile-cart.png" width="30%" alt="Mobile Cart" />
-</div>
+
 
 *Fully responsive design optimized for mobile devices*
 
