@@ -1,0 +1,23 @@
+# Ignore node_modules for both micro front-end and micro service
+home-mf/node_modules/
+home-ms/node_modules/
+
+# Ignore environment files
+home-mf/.env
+home-ms/.env
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build output (optional - add if needed)
+home-mf/dist/
+home-ms/dist/
+home-mf/build/
+home-ms/build/
