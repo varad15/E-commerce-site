@@ -1,0 +1,83 @@
+# ===============================================
+# CRITICAL: NEVER COMMIT THESE FILES
+# ===============================================
+
+# Compiled files
+target/
+*.class
+*.jar
+*.war
+*.ear
+build/
+dist/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+*.swp
+*.swo
+.DS_Store
+
+# Node modules
+node_modules/
+frontend-react/node_modules/
+frontend-react/build/
+frontend-react/dist/
+
+# Environment variables - CONTAINS PASSWORDS!
+*.env
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Application properties - CONTAINS SECRETS!
+**/application.properties
+**/application-*.properties
+!**/application.properties.template
+
+# Database files
+*.db
+*.sqlite
+*.sql
+*.dump
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Secrets & credentials
+secrets/
+*.pem
+*.key
+*.cert
+*.p12
+*.jks
+credentials.json
+
+# Package files
+*.zip
+*.tar.gz
+*.rar
+
+# Maven wrapper (optional - can include or exclude)
+.mvn/wrapper/maven-wrapper.jar
+
+# NPM/Yarn
+.npm
+.yarn
+package-lock.json.backup
+yarn.lock.backup
